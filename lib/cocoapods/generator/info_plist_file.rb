@@ -39,7 +39,8 @@ module Pod
       #
       def target_version
         if target && target.respond_to?(:root_spec)
-          target.root_spec.version.to_s
+          version = target.root_spec.version
+          [version.major, version.minor, version.patch].join('.')
         else
           '1.0.0'
         end
@@ -63,7 +64,7 @@ module Pod
   <key>CFBundleExecutable</key>
   <string>${EXECUTABLE_NAME}</string>
   <key>CFBundleIdentifier</key>
-  <string>org.cocoapods.${PRODUCT_NAME:rfc1034identifier}</string>
+  <string>${PRODUCT_BUNDLE_IDENTIFIER}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

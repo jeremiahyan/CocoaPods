@@ -246,16 +246,16 @@ module Pod
 
         if config.integrate_targets?
           target_inspection = result.target_inspections[target_definition]
-          target.user_project_path = target_inspection.project_path
-          target.client_root = target.user_project_path.dirname
+          target.user_project = target_inspection.project
+          target.client_root = target.user_project_path.dirname.realpath
           target.user_target_uuids = target_inspection.project_target_uuids
           target.user_build_configurations = target_inspection.build_configurations
           target.archs = target_inspection.archs
         else
-          target.client_root = config.installation_root
+          target.client_root = config.installation_root.realpath
           target.user_target_uuids = []
           target.user_build_configurations = target_definition.build_configurations || { 'Release' => :release, 'Debug' => :debug }
-          if target_definition.platform.name == :osx
+          if target_definition.platform && target_definition.platform.name == :osx
             target.archs = '$(ARCHS_STANDARD_64_BIT)'
           end
         end
@@ -277,6 +277,8 @@ module Pod
       #
       def generate_pod_targets(specs_by_target)
         if config.deduplicate_targets?
+          dedupe_cache = {}
+
           all_specs = specs_by_target.flat_map do |target_definition, dependent_specs|
             dependent_specs.group_by(&:root).map do |root_spec, specs|
               [root_spec, specs, target_definition]
@@ -292,9 +294,9 @@ module Pod
           pod_targets = distinct_targets.flat_map do |_, targets_by_distinctors|
             if targets_by_distinctors.count > 1
               # There are different sets of subspecs or the spec is used across different platforms
-              targets_by_distinctors.map do |distinctor, target_definitions|
-                specs, _ = *distinctor
-                generate_pod_target(target_definitions, specs, :scoped => true)
+              targets_by_distinctors.flat_map do |distinctor, target_definitions|
+                specs, = *distinctor
+                generate_pod_target(target_definitions, specs).scoped(dedupe_cache)
               end
             else
               (specs, _), target_definitions = targets_by_distinctors.first
@@ -308,7 +310,7 @@ module Pod
             dependent_targets = transitive_dependencies_for_pod_target(target, pod_targets)
             target.dependent_targets = dependent_targets
             if dependent_targets.any?(&:scoped?)
-              target.scoped
+              target.scoped(dedupe_cache)
             else
               target
             end
@@ -317,7 +319,7 @@ module Pod
           pod_targets = specs_by_target.flat_map do |target_definition, specs|
             grouped_specs = specs.group_by.group_by(&:root).values.uniq
             grouped_specs.flat_map do |pod_specs|
-              generate_pod_target([target_definition], pod_specs, :scoped => true)
+              generate_pod_target([target_definition], pod_specs).scoped(dedupe_cache)
             end
           end
           pod_targets.each do |target|
@@ -364,13 +366,10 @@ module Pod
       # @param  [Array<Specification>] specs
       #         the specifications of an equal root.
       #
-      # @param  [Bool] scoped
-      #         whether the pod target should be scoped
-      #
       # @return [PodTarget]
       #
-      def generate_pod_target(target_definitions, pod_specs, scoped: false)
-        pod_target = PodTarget.new(pod_specs, target_definitions, sandbox, scoped)
+      def generate_pod_target(target_definitions, pod_specs)
+        pod_target = PodTarget.new(pod_specs, target_definitions, sandbox)
 
         if config.integrate_targets?
           target_inspections = result.target_inspections.select { |t, _| target_definitions.include?(t) }.values
@@ -639,7 +638,7 @@ module Pod
       def verify_platforms_specified!
         unless config.integrate_targets?
           podfile.target_definition_list.each do |target_definition|
-            unless target_definition.platform
+            if !target_definition.empty? && target_definition.platform.nil?
               raise Informative, 'It is necessary to specify the platform in the Podfile if not integrating.'
             end
           end
@@ -657,12 +656,19 @@ module Pod
       def inspect_targets_to_integrate
         inspection_result = {}
         UI.section 'Inspecting targets to integrate' do
-          podfile.target_definition_list.each do |target_definition|
-            inspector = TargetInspector.new(target_definition, config.installation_root)
-            results = inspector.compute_results
-            inspection_result[target_definition] = results
-            UI.message('Using `ARCHS` setting to build architectures of ' \
-              "target `#{target_definition.label}`: (`#{results.archs.join('`, `')}`)")
+          inspectors = podfile.target_definition_list.map do |target_definition|
+            TargetInspector.new(target_definition, config.installation_root)
+          end
+          inspectors.group_by(&:compute_project_path).each do |project_path, target_inspectors|
+            project = Xcodeproj::Project.open(project_path)
+            target_inspectors.each do |inspector|
+              target_definition = inspector.target_definition
+              inspector.user_project = project
+              results = inspector.compute_results
+              inspection_result[target_definition] = results
+              UI.message('Using `ARCHS` setting to build architectures of ' \
+                "target `#{target_definition.label}`: (`#{results.archs.join('`, `')}`)")
+            end
           end
         end
         inspection_result

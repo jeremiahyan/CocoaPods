@@ -6,8 +6,14 @@ module Pod
       describe PodXCConfig do
         describe 'in general' do
           before do
+            @monkey_spec = fixture_spec('monkey/monkey.podspec')
+            @monkey_pod_target = fixture_pod_target(@monkey_spec)
+
             @spec = fixture_spec('banana-lib/BananaLib.podspec')
             @pod_target = fixture_pod_target(@spec)
+            @pod_target.dependent_targets = [@monkey_pod_target]
+            @pod_target.host_requires_frameworks = true
+
             @consumer = @pod_target.spec_consumers.first
             @podfile = @pod_target.podfile
             @generator = PodXCConfig.new(@pod_target)
@@ -18,8 +24,6 @@ module Pod
             @spec.weak_frameworks = ['iAd']
             @spec.libraries = ['xml2']
             file_accessors = [Sandbox::FileAccessor.new(fixture('banana-lib'), @consumer)]
-            # vendored_framework_paths = [config.sandbox.root + 'BananaLib/BananaLib.framework']
-            # Sandbox::FileAccessor.any_instance.stubs(:vendored_frameworks).returns(vendored_framework_paths)
 
             @pod_target.stubs(:file_accessors).returns(file_accessors)
 
@@ -45,6 +49,14 @@ module Pod
 
           it 'includes the weak-frameworks of the specifications' do
             @xcconfig.to_hash['OTHER_LDFLAGS'].should.include('-weak_framework "iAd"')
+          end
+
+          it 'includes the vendored dynamic frameworks for dependecy pods of the specification' do
+            @xcconfig.to_hash['OTHER_LDFLAGS'].should.include('-framework "dynamic-monkey"')
+          end
+
+          it 'does not include vendored static frameworks for dependecy pods of the specification' do
+            @xcconfig.to_hash['OTHER_LDFLAGS'].should.not.include('-l"monkey.a"')
           end
 
           it 'does not configure the project to load all members that implement Objective-c classes or categories from the static library' do
@@ -85,6 +97,10 @@ module Pod
 
           it 'will be skipped when installing' do
             @xcconfig.to_hash['SKIP_INSTALL'].should == 'YES'
+          end
+
+          it 'sets PRODUCT_BUNDLE_IDENTIFIER' do
+            @xcconfig.to_hash['PRODUCT_BUNDLE_IDENTIFIER'].should == 'org.cocoapods.${PRODUCT_NAME:rfc1034identifier}'
           end
 
           it 'saves the xcconfig' do

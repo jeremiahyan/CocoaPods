@@ -6,14 +6,144 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
 
 ## Master
 
+##### Enhancements
+
+* Improve `pod search` performance while using _`--full`_ flag  
+  [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
+  [cocoapods-search#8](https://github.com/CocoaPods/cocoapods-search/issues/8)
+  
+* Improve message when there is no spec in repos for dependency set in Podfile.  
+  [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
+  [#4430](https://github.com/CocoaPods/CocoaPods/issues/4430)
+
+* Reduce the number of times the user's Xcode project is opened, speeding up
+  installation.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4374](https://github.com/CocoaPods/CocoaPods/issues/4374)
+
+* Improving the performance of Pod::Installer::Analyzer#generate_pod_targets  
+  [Daniel Ribeiro](https://github.com/danielribeiro)
+  [#4399](https://github.com/CocoaPods/CocoaPods/pull/4399)
+
+* Framework pods that have a `header_mappings_dirs` set will now produce
+  frameworks with headers that respect the nesting.  
+  [Samuel Giddins](https://github.com/segiddins)
+
+* The validator will now ensure that pods with a `header_mappings_dirs` have all
+  of their headers inside that directory.  
+  [Samuel Giddins](https://github.com/segiddins)
+
+* Pods will be validated with the `-Wincomplete-umbrella` compiler flag to
+  ensure module maps are valid.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#3428](https://github.com/CocoaPods/CocoaPods/issues/3428)
+
+* The validator will now attempt to build an app that imports the pod.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#2095](https://github.com/CocoaPods/CocoaPods/issues/2095)
+  [#2134](https://github.com/CocoaPods/CocoaPods/issues/2134)
+
+* The `Info.plist` file's `CFBundleIdentifier` is now set via the
+  `PRODUCT_BUNDLE_IDENTIFIER` build setting, consisten with Xcode 7.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4426](https://github.com/CocoaPods/CocoaPods/issues/4426)
+
 ##### Bug Fixes
 
-* Give a meaningful message for the case where there is no available stable version for a pod,
-  and user do not explicitly specify the required version.
+* Improve repo lint error message when no repo found with given name.  
+  [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
+  [#4142](https://github.com/CocoaPods/CocoaPods/issues/4142)
+
+* Fix a crash in dependency resolution when running Ruby 2.3.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4345](https://github.com/CocoaPods/CocoaPods/issues/4345)
+
+* Fix handling of localized files in Pods installed as frameworks.  
+  [Tim Bodeit](https://github.com/timbodeit)
+  [#2597](https://github.com/CocoaPods/CocoaPods/issues/2597)
+
+* Only include native targets when generating the Podfile in `pod init`.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#2169](https://github.com/CocoaPods/CocoaPods/issues/2169)
+
+* Ensure that generated `Info.plist` files have a `CFBundleShortVersionString`
+  that is precisely three dot-separated numbers.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4421](https://github.com/CocoaPods/CocoaPods/issues/4421)
+
+* Set the `APPLICATION_EXTENSION_API_ONLY` build setting if integrating with a
+  tvOS extension target, or a target that has the setting set to `YES`.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#3644](https://github.com/CocoaPods/CocoaPods/issues/3644)
+  [#4393](https://github.com/CocoaPods/CocoaPods/issues/4393)
+
+* Only the root directory of externally-sourced pods will be searched for
+  podspecs.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#3683](https://github.com/CocoaPods/CocoaPods/issues/3683)
+
+
+## 0.39.0 (2015-10-09)
+
+##### Enhancements
+
+* Podfile-specified options are passed to plugins as hashes that treat string
+  and symbol keys identically.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#3354](https://github.com/CocoaPods/CocoaPods/issues/3354)
+
+##### Bug Fixes
+
+* Only link dynamic vendored frameworks and libraries of pod dependencies.  
+  [Kevin Coleman](https://github.com/kcoleman731)
+  [#4336](https://github.com/CocoaPods/CocoaPods/issues/4336)
+
+
+## 0.39.0.rc.1 (2015-10-05)
+
+##### Enhancements
+
+* Support for adding dependency target vendored libraries and frameworks to build settings.  
+  [Kevin Coleman](https://github.com/kcoleman731)
+  [#4278](https://github.com/CocoaPods/CocoaPods/pull/4278)
+
+* Always link the aggregate target as static to the user project.  
+  [Marius Rackwitz](https://github.com/mrackwitz)
+  [#4137](https://github.com/CocoaPods/CocoaPods/pull/4137)
+
+
+## 0.39.0.beta.5 (2015-10-01)
+
+##### Breaking
+
+* Activesupport 4 is now required, breaking compatibility with applications
+  locked to `3.x.y`.  
+
+##### Enhancements
+
+* The `EMBEDDED_CONTENT_CONTAINS_SWIFT` build setting will now be set when
+  appropriate.  
+  [Samuel Giddins](https://github.com/segiddins)
+
+* The embed frameworks script will no longer manually copy over the Swift
+  runtime libraries on Xcode 7 and later.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [earltedly](https://github.com/segiddins)
+  [DJ Tarazona](https://github.com/djtarazona)
+  [#4188](https://github.com/CocoaPods/CocoaPods/issues/4188)
+
+* A post-install summary of the pods installed is now printed.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4124](https://github.com/CocoaPods/CocoaPods/issues/4124)
+
+##### Bug Fixes
+
+* Give a meaningful message for the case where there is no available stable
+  version for a pod, and there is no explicit version requirement.  
   [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
   [#4197](https://github.com/CocoaPods/CocoaPods/issues/4197)
 
-* Use watchsimulator when validating pods with the watchOS platform.
+* Use `watchsimulator` when validating pods with the watchOS platform.  
   [Thomas Kollbach](https://github.com/toto)
   [#4130](https://github.com/CocoaPods/CocoaPods/issues/4130)
 
@@ -26,8 +156,38 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
   [#4219](https://github.com/CocoaPods/CocoaPods/issues/4219)
 
 * Podfile generated by `pod init` now specifies iOS 8.0 as the default platform
-  and includes `use_frameworks!` for Swift projects.
+  and includes `use_frameworks!` for Swift projects.  
   [Jamie Evans](https://github.com/JamieREvans)
+
+* Support for the new `tvos` platform.  
+  [Boris Bügling](https://github.com/neonichu)
+  [#4152](https://github.com/CocoaPods/CocoaPods/pull/4152)
+
+* Either generate just one pod target or generate it once for each target
+  definition.  
+  [Marius Rackwitz](https://github.com/mrackwitz)
+  [#4034](https://github.com/CocoaPods/CocoaPods/issues/4034)
+
+* Stop setting `DYLIB_CURRENT_VERSION`, `CURRENT_PROJECT_VERSION`, and
+  `DYLIB_COMPATIBILITY_VERSION` for pods integrated as dynamic frameworks.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4083](https://github.com/CocoaPods/CocoaPods/issues/4083)
+
+* The headers folders paths for static library pods will be unset, fixing
+  validation when archives are uploaded to iTunes Connect.  
+  [Boris Bügling](https://github.com/neonichu)
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4119](https://github.com/CocoaPods/CocoaPods/issues/4119)
+
+* Don't require the `platform` attribute for targets without any declared pods
+  when running `pod install --no-integrate`.  
+  [Sylvain Guillopé](https://github.com/sguillope)
+  [#3151](https://github.com/CocoaPods/CocoaPods/issues/3151)
+
+* Gracefully handle exception if creating the repos directory fails due to a
+  system error like a permission issue.  
+  [Sylvain Guillopé](https://github.com/sguillope)
+  [#4177](https://github.com/CocoaPods/CocoaPods/issues/4177)
 
 ## 0.39.0.beta.4 (2015-09-02)
 

@@ -127,13 +127,36 @@ module Pod
         # @todo   This can be removed for CocoaPods 1.0
         #
         def update_to_cocoapods_0_39
-          requires_update = native_targets_to_embed_in.any? do |target|
-            !target.shell_script_build_phases.find { |bp| bp.name == 'Embed Pods Frameworks' }
+          targets_to_embed = native_targets.select do |target|
+            EMBED_FRAMEWORK_TARGET_TYPES.include?(target.symbol_type)
+          end
+          requires_update = targets_to_embed.any? do |target|
+            !target.shell_script_build_phases.find { |bp| bp.name == EMBED_FRAMEWORK_PHASE_NAME }
           end
           if requires_update
-            add_embed_frameworks_script_phase
-            true
+            targets_to_embed.each do |native_target|
+              add_embed_frameworks_script_phase_to_target(native_target)
+            end
           end
+
+          frameworks = user_project.frameworks_group
+          native_targets.each do |native_target|
+            build_phase = native_target.frameworks_build_phase
+
+            product_ref = frameworks.files.find { |f| f.path == target.product_name }
+            if product_ref
+              build_file = build_phase.build_file(product_ref)
+              if build_file &&
+                  build_file.settings.is_a?(Hash) &&
+                  build_file.settings['ATTRIBUTES'].is_a?(Array) &&
+                  build_file.settings['ATTRIBUTES'].include?('Weak')
+                build_file.settings = nil
+                requires_update = true
+              end
+            end
+          end
+
+          requires_update
         end
 
         # Adds spec product reference to the frameworks build phase of the
@@ -161,15 +184,8 @@ module Pod
             target_basename = target.product_basename
             new_product_ref = frameworks.files.find { |f| f.path == target.product_name } ||
               frameworks.new_product_ref_for_target(target_basename, target.product_type)
-            build_file = build_phase.build_file(new_product_ref) ||
+            build_phase.build_file(new_product_ref) ||
               build_phase.add_file_reference(new_product_ref, true)
-            if target.requires_frameworks?
-              # Weak link the aggregate target's product, because as it contains
-              # no symbols, it isn't copied into the app bundle. dyld will so
-              # never try to find the missing executable at runtime.
-              build_file.settings ||= {}
-              build_file.settings['ATTRIBUTES'] = ['Weak']
-            end
           end
         end
 
@@ -179,10 +195,14 @@ module Pod
         #
         def add_embed_frameworks_script_phase
           native_targets_to_embed_in.each do |native_target|
-            phase = create_or_update_build_phase(native_target, EMBED_FRAMEWORK_PHASE_NAME)
-            script_path = target.embed_frameworks_script_relative_path
-            phase.shell_script = %("#{script_path}"\n)
+            add_embed_frameworks_script_phase_to_target(native_target)
           end
+        end
+
+        def add_embed_frameworks_script_phase_to_target(native_target)
+          phase = create_or_update_build_phase(native_target, EMBED_FRAMEWORK_PHASE_NAME)
+          script_path = target.embed_frameworks_script_relative_path
+          phase.shell_script = %("#{script_path}"\n)
         end
 
         # Delete a 'Embed Pods Frameworks' Copy Files Build Phase if present
@@ -227,7 +247,7 @@ module Pod
           native_targets_to_integrate.each do |native_target|
             phase = create_or_update_build_phase(native_target, phase_name)
             native_target.build_phases.unshift(phase).uniq!
-            phase.shell_script = <<-EOS.strip_heredoc
+            phase.shell_script = <<-SH.strip_heredoc
               diff "${PODS_ROOT}/../Podfile.lock" "${PODS_ROOT}/Manifest.lock" > /dev/null
               if [[ $? != 0 ]] ; then
                   cat << EOM
@@ -235,7 +255,7 @@ module Pod
               EOM
                   exit 1
               fi
-            EOS
+            SH
           end
         end
 
@@ -248,7 +268,7 @@ module Pod
         #         match the given target.
         #
         def native_targets
-          @native_targets ||= target.user_targets(user_project)
+          @native_targets ||= target.user_targets
         end
 
         # @return [Array<PBXNativeTarget>] The list of all the targets that
@@ -285,7 +305,7 @@ module Pod
         # @return [Project]
         #
         def user_project
-          @user_project ||= Xcodeproj::Project.open(target.user_project_path)
+          target.user_project
         end
 
         # @return [Specification::Consumer] the consumer for the specifications.

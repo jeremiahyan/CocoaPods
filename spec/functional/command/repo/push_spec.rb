@@ -35,7 +35,7 @@ module Pod
       repo_make('test_repo')
       Dir.chdir(temporary_directory) do
         spec = "Spec.new do |s|; s.name = 'Broken'; s.version = '1.0' end"
-        File.open('Broken.podspec',  'w') { |f| f.write(spec) }
+        File.open('Broken.podspec', 'w') { |f| f.write(spec) }
         cmd = command('repo', 'push', 'test_repo')
         Validator.any_instance.stubs(:validated?).returns(false)
 
@@ -48,7 +48,7 @@ module Pod
       repo_make('test_repo')
 
       Dir.chdir(temporary_directory) do
-        File.open('JSON.podspec.json',  'w') { |f| f.write('{}') }
+        File.open('JSON.podspec.json', 'w') { |f| f.write('{}') }
         cmd = command('repo', 'push', 'test_repo')
         cmd.send(:podspec_files).should == [Pathname('JSON.podspec.json')]
       end
@@ -130,6 +130,7 @@ module Pod
       Installer.any_instance.stubs(:aggregate_targets).returns([])
       Installer.any_instance.stubs(:pod_targets).returns([])
       Validator.any_instance.stubs(:install_pod)
+      Validator.any_instance.stubs(:add_app_project_import)
       Validator.any_instance.stubs(:check_file_patterns)
       Validator.any_instance.stubs(:validated?).returns(true)
       Validator.any_instance.stubs(:validate_url)
@@ -141,6 +142,7 @@ module Pod
       Validator.any_instance.expects(:podfile_from_spec).with(:ios, nil, true).times(3)
       Validator.any_instance.expects(:podfile_from_spec).with(:osx, nil, true).twice
       Validator.any_instance.expects(:podfile_from_spec).with(:watchos, nil, true).twice
+      Validator.any_instance.expects(:podfile_from_spec).with(:tvos, nil, true).twice
 
       cmd = command('repo', 'push', 'master')
       Dir.chdir(temporary_directory) { cmd.run }
@@ -150,6 +152,7 @@ module Pod
       Validator.any_instance.expects(:podfile_from_spec).with(:ios, nil, false).times(3)
       Validator.any_instance.expects(:podfile_from_spec).with(:osx, nil, false).twice
       Validator.any_instance.expects(:podfile_from_spec).with(:watchos, nil, false).twice
+      Validator.any_instance.expects(:podfile_from_spec).with(:tvos, nil, false).twice
 
       cmd = command('repo', 'push', 'master', '--use-libraries')
       Dir.chdir(temporary_directory) { cmd.run }

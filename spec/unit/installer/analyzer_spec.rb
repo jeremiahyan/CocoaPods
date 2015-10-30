@@ -47,10 +47,10 @@ module Pod
 
       it 'computes the state of the Podfile respect to the Lockfile' do
         state = @analyzer.analyze.podfile_state
-        state.added.should     == %w(AFNetworking libextobjc/EXTKeyPathCoding libextobjc/EXTSynthesize)
-        state.changed.should   == %w()
+        state.added.should == %w(AFNetworking libextobjc/EXTKeyPathCoding libextobjc/EXTSynthesize)
+        state.changed.should == %w()
         state.unchanged.should == %w(JSONKit SVPullToRefresh)
-        state.deleted.should   == %w(NUI)
+        state.deleted.should == %w(NUI)
       end
 
       #--------------------------------------#
@@ -196,7 +196,7 @@ module Pod
             Pods/Pods-BananaLib
             Pods/Pods-monkey
             Pods-TestRunner/Pods-TestRunner-BananaLib
-            Pods-TestRunner/Pods-monkey
+            Pods-TestRunner/Pods-TestRunner-monkey
             Pods-CLITool/Pods-CLITool-monkey
           ).sort
         end
@@ -210,6 +210,57 @@ module Pod
         target.user_target_uuids.should == []
         target.user_build_configurations.should == { 'Release' => :release, 'Debug' => :debug }
         target.platform.to_s.should == 'iOS 6.0'
+      end
+
+      describe 'no-integrate platform validation' do
+        before do
+          repos = [fixture('spec-repos/test_repo')]
+          aggregate = Pod::Source::Aggregate.new(repos)
+          Pod::SourcesManager.stubs(:aggregate).returns(aggregate)
+          aggregate.sources.first.stubs(:url).returns(SpecHelper.test_repo_url)
+          config.integrate_targets = false
+        end
+
+        it 'does not require a platform for an empty target' do
+          podfile = Pod::Podfile.new do
+            source SpecHelper.test_repo_url
+            xcodeproj 'SampleProject/SampleProject'
+            target 'TestRunner' do
+              platform :osx
+              pod 'monkey'
+            end
+          end
+
+          analyzer = Pod::Installer::Analyzer.new(config.sandbox, podfile)
+          lambda { analyzer.analyze }.should.not.raise
+        end
+
+        it 'does not raise if a target with dependencies inherits the platform from its parent' do
+          podfile = Pod::Podfile.new do
+            source SpecHelper.test_repo_url
+            xcodeproj 'SampleProject/SampleProject'
+            platform :osx
+            target 'TestRunner' do
+              pod 'monkey'
+            end
+          end
+
+          analyzer = Pod::Installer::Analyzer.new(config.sandbox, podfile)
+          lambda { analyzer.analyze }.should.not.raise
+        end
+
+        it 'raises if a target with dependencies does not have a platform' do
+          podfile = Pod::Podfile.new do
+            source SpecHelper.test_repo_url
+            xcodeproj 'SampleProject/SampleProject'
+            target 'TestRunner' do
+              pod 'monkey'
+            end
+          end
+
+          analyzer = Pod::Installer::Analyzer.new(config.sandbox, podfile)
+          lambda { analyzer.analyze }.should.raise Informative
+        end
       end
 
       it 'returns all the configurations the user has in any of its projects and/or targets' do
@@ -239,7 +290,7 @@ module Pod
       end
 
       it 'unlocks dependencies in a case-insensitive manner' do
-        @analyzer.update =  { :pods => %w(JSONKit) }
+        @analyzer.update = { :pods => %w(JSONKit) }
         @analyzer.analyze
         @analyzer.send(:locked_dependencies).map(&:payload).map(&:to_s).
           should == ['SVPullToRefresh (= 0.4)']

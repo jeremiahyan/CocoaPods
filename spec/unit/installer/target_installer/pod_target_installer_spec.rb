@@ -53,7 +53,7 @@ module Pod
       it "adds the user's build configurations to the target" do
         @pod_target.user_build_configurations.merge!('AppStore' => :release, 'Test' => :debug)
         @installer.install!
-        @project.targets.first.build_configurations.map(&:name).sort.should == %w(        AppStore Debug Release Test        )
+        @project.targets.first.build_configurations.map(&:name).sort.should == %w( AppStore Debug Release Test        )
       end
 
       it 'it creates different hash instances for the build settings of various build configurations' do
@@ -66,6 +66,27 @@ module Pod
         @installer.install!
         @installer.target.native_target.build_configurations.each do |config|
           config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'].should.be.nil
+        end
+      end
+
+      #--------------------------------------#
+
+      describe 'headers folder paths' do
+        it 'does not set them for framework targets' do
+          @pod_target.stubs(:requires_frameworks? => true)
+          @installer.install!
+          @project.targets.first.build_configurations.each do |config|
+            config.build_settings['PUBLIC_HEADERS_FOLDER_PATH'].should.be.nil
+            config.build_settings['PRIVATE_HEADERS_FOLDER_PATH'].should.be.nil
+          end
+        end
+
+        it 'empties them for non-framework targets' do
+          @installer.install!
+          @project.targets.first.build_configurations.each do |config|
+            config.build_settings['PUBLIC_HEADERS_FOLDER_PATH'].should.be.empty
+            config.build_settings['PRIVATE_HEADERS_FOLDER_PATH'].should.be.empty
+          end
         end
       end
 
@@ -218,6 +239,51 @@ module Pod
 
       #--------------------------------------------------------------------------------#
 
+      it 'creates custom copy files phases for framework pods with header_mappings_dirs' do
+        @project.add_pod_group('snake', fixture('snake'))
+
+        @pod_target = fixture_pod_target('snake/snake.podspec', @target_definition)
+        @pod_target.user_build_configurations = { 'Debug' => :debug, 'Release' => :release }
+        @pod_target.stubs(:requires_frameworks? => true)
+        group = @project.group_for_spec('snake')
+        @pod_target.file_accessors.first.source_files.each do |file|
+          @project.add_file_reference(file, group)
+        end
+        @installer.stubs(:target).returns(@pod_target)
+        @installer.install!
+
+        target = @project.native_targets.first
+        target.name.should == 'snake'
+
+        target.headers_build_phase.files.reject { |build_file| build_file.settings.nil? }.map(&:display_name).should == ['snake-umbrella.h']
+
+        copy_files_build_phases = target.copy_files_build_phases.sort_by(&:name)
+        copy_files_build_phases.map(&:name).should == [
+          'Copy . Public Headers',
+          'Copy A Public Headers',
+          'Copy B Public Headers',
+          'Copy C Public Headers',
+        ]
+
+        copy_files_build_phases.map(&:symbol_dst_subfolder_spec).should == Array.new(4, :products_directory)
+
+        copy_files_build_phases.map(&:dst_path).should == [
+          '$(PUBLIC_HEADERS_FOLDER_PATH)/.',
+          '$(PUBLIC_HEADERS_FOLDER_PATH)/A',
+          '$(PUBLIC_HEADERS_FOLDER_PATH)/B',
+          '$(PUBLIC_HEADERS_FOLDER_PATH)/C',
+        ]
+
+        copy_files_build_phases.map { |phase| phase.files_references.map(&:path) }.should == [
+          ['Code/snake.h'],
+          ['Code/A/Boa.h', 'Code/A/Garden.h', 'Code/A/Rattle.h'],
+          ['Code/B/Boa.h', 'Code/B/Garden.h', 'Code/B/Rattle.h'],
+          ['Code/C/Boa.h', 'Code/C/Garden.h', 'Code/C/Rattle.h'],
+        ]
+      end
+
+      #--------------------------------------------------------------------------------#
+
       describe 'concerning compiler flags' do
         before do
           @spec = Pod::Spec.new
@@ -293,49 +359,6 @@ module Pod
             ios_flags.should.include '-DOS_OBJECT_USE_OBJC'
             osx_flags.should.include '-DOS_OBJECT_USE_OBJC'
           end
-        end
-      end
-
-      #--------------------------------------------------------------------------------#
-
-      describe 'concerning framework versions' do
-        before do
-          @pod_target.stubs(:requires_frameworks? => true)
-          @spec.stubs(:version => Version.new('1.2.3'))
-        end
-
-        it 'sets the project and library version' do
-          settings = @installer.send(:custom_build_settings)
-          settings['CURRENT_PROJECT_VERSION'].should == '1.2.3'
-          settings['DYLIB_CURRENT_VERSION'].should == '$(CURRENT_PROJECT_VERSION)'
-        end
-
-        it 'sets the library compatibility version to the major version' do
-          settings = @installer.send(:custom_build_settings)
-          settings['DYLIB_COMPATIBILITY_VERSION'].should == '1'
-        end
-
-        it 'sets the library compatibility version to the exact version when it is less than v1 (because SemVer makes no promises)' do
-          @spec.stubs(:version => Version.new('0.1.2'))
-          settings = @installer.send(:custom_build_settings)
-          settings['DYLIB_COMPATIBILITY_VERSION'].should == '0.1.2'
-        end
-
-        describe 'with weird version numbers' do
-          handles = -> (version, project_version, compatibility_version) do
-            it "handles #{version}" do
-              @spec.stubs(:version => Version.new(version))
-              settings = @installer.send(:custom_build_settings)
-              settings['CURRENT_PROJECT_VERSION'].should == project_version
-              settings['DYLIB_COMPATIBILITY_VERSION'].should == compatibility_version
-            end
-          end
-
-          handles['1.alpha', '1.0.0', '1']
-          handles['0.1-alpha', '0.1.0', '0.1.0']
-          handles['1.2.3.4', '1.2.3', '1']
-          handles['0.2.3.4', '0.2.3', '0.2.3']
-          handles['1.alpha.2', '1.0.0', '1']
         end
       end
     end

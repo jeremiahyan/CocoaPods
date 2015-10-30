@@ -174,7 +174,7 @@ module Pod
     #
     def requirement_satisfied_by?(requirement, activated, spec)
       existing_vertices = activated.vertices.values.select do |v|
-        Specification.root_name(v.name) ==  requirement.root_name
+        Specification.root_name(v.name) == requirement.root_name
       end
       existing = existing_vertices.map(&:payload).compact.first
       requirement_satisfied =
@@ -400,7 +400,13 @@ module Pod
             message << "\nYou should explicitly specify the version in order to install a pre-release version"
           elsif !conflict.existing
             conflict.requirements.values.flatten.each do |r|
-              unless search_for(r).empty?
+              if search_for(r).empty?
+                # There is no existing specification inside any of the spec repos with given requirements.
+                message << "\n\nNone of the spec sources contain a spec satisfying the `#{r}` dependency." \
+                  "\nYou have either; mistyped the name or version," \
+                  ' not added the source repo that hosts the Podspec to your Podfile,' \
+                  ' or not got the latest versions of your source repos.'
+              else
                 message << "\n\nSpecs satisfying the `#{r}` dependency were found, " \
                   'but they required a higher minimum deployment target.'
               end
@@ -422,12 +428,9 @@ module Pod
     #
     # @return [Bool]
     def spec_is_platform_compatible?(dependency_graph, dependency, spec)
-      all_predecessors = ->(vertex) do
-        pred = vertex.predecessors
-        pred + pred.map(&all_predecessors).reduce(Set.new, &:|) << vertex
-      end
       vertex = dependency_graph.vertex_named(dependency.name)
-      predecessors = all_predecessors[vertex].reject { |v| !dependency_graph.root_vertex_named(v.name) }
+      predecessors = vertex.recursive_predecessors.select(&:root)
+      predecessors << vertex if vertex.root?
       platforms_to_satisfy = predecessors.flat_map(&:explicit_requirements).flat_map { |r| @platforms_by_dependency[r] }
 
       platforms_to_satisfy.all? do |platform_to_satisfy|
@@ -461,9 +464,7 @@ module Pod
     def edge_is_valid_for_target?(edge, target)
       dependencies_for_target_platform =
         edge.origin.payload.all_dependencies(target.platform).map(&:name)
-      edge.requirements.any? do |dependency|
-        dependencies_for_target_platform.include?(dependency.name)
-      end
+      dependencies_for_target_platform.include?(edge.requirement.name)
     end
   end
 end

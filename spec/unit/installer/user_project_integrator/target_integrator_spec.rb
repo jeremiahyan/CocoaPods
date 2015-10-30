@@ -10,20 +10,23 @@ module Pod
       before do
         project_path = SpecHelper.create_sample_app_copy_from_fixture('SampleProject')
         @project = Xcodeproj::Project.open(project_path)
-        Xcodeproj::Project.new(config.sandbox.project_path).save
+        Project.new(config.sandbox.project_path).save
         @target = @project.targets.first
         target_definition = Podfile::TargetDefinition.new('Pods', nil)
         target_definition.link_with_first_target = true
         @pod_bundle = AggregateTarget.new(target_definition, config.sandbox)
-        @pod_bundle.user_project_path  = project_path
+        @pod_bundle.user_project = @project
         @pod_bundle.client_root = project_path.dirname
-        @pod_bundle.user_target_uuids  = [@target.uuid]
+        @pod_bundle.user_target_uuids = [@target.uuid]
         configuration = Xcodeproj::Config.new(
           'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) COCOAPODS=1',
         )
         @pod_bundle.xcconfigs['Debug'] = configuration
         @pod_bundle.xcconfigs['Release'] = configuration
         @target_integrator = TargetIntegrator.new(@pod_bundle)
+        @target_integrator.private_methods.grep(/^update_to_cocoapods_/).each do |method|
+          @target_integrator.stubs(method)
+        end
       end
 
       describe '#integrate!' do
@@ -47,17 +50,44 @@ module Pod
           phase.shell_script.strip.should == "\"${SRCROOT}/../Pods/Target Support Files/Pods/Pods-resources.sh\""
         end
 
+        it 'fixes the "Link binary with libraries" build phase of legacy installations' do
+          @target_integrator.unstub(:update_to_cocoapods_0_39)
+          @pod_bundle.stubs(:requires_frameworks? => true)
+          @target_integrator.integrate!
+          target = @target_integrator.send(:native_targets).first
+          phase = target.frameworks_build_phase
+          build_file = phase.files.find { |f| f.file_ref.path == 'Pods.framework' }
+          build_file.settings = { 'ATTRIBUTES' => %w(Weak) }
+          @target_integrator.integrate!
+          build_file.settings.should.be.nil
+        end
+
         it 'adds references to the Pods static libraries to the Frameworks group' do
           @target_integrator.integrate!
-          @target_integrator.send(:user_project)['Frameworks/libPods.a'].should.not.nil?
+          @target_integrator.send(:user_project)['Frameworks/libPods.a'].should.not.be.nil
         end
 
         it 'adds the libPods static library to the "Link binary with libraries" build phase of each target' do
           @target_integrator.integrate!
           target = @target_integrator.send(:native_targets).first
           phase = target.frameworks_build_phase
-          ref = phase.files.find { |f| f.file_ref.path == 'libPods.a' }
-          ref.should.not.be.nil
+          build_file = phase.files.find { |f| f.file_ref.path == 'libPods.a' }
+          build_file.should.not.be.nil
+        end
+
+        it 'adds references to the Pods static framework to the Frameworks group' do
+          @pod_bundle.stubs(:requires_frameworks? => true)
+          @target_integrator.integrate!
+          @target_integrator.send(:user_project)['Frameworks/Pods.framework'].should.not.be.nil
+        end
+
+        it 'adds the Pods static framework to the "Link binary with libraries" build phase of each target' do
+          @pod_bundle.stubs(:requires_frameworks? => true)
+          @target_integrator.integrate!
+          target = @target_integrator.send(:native_targets).first
+          phase = target.frameworks_build_phase
+          build_file = phase.files.find { |f| f.file_ref.path == 'Pods.framework' }
+          build_file.should.not.be.nil
         end
 
         it 'adds a Copy Pods Resources build phase to each target' do
@@ -189,7 +219,7 @@ module Pod
           build_file.file_ref = @project.new(Xcodeproj::Project::PBXVariantGroup)
           @target_integrator.stubs(:user_project).returns(@project)
           @target.frameworks_build_phase.files << build_file
-          @target_integrator.send(:native_targets).map(&:name).should == %w(          SampleProject          )
+          @target_integrator.send(:native_targets).map(&:name).should == %w( SampleProject          )
         end
 
         it 'is robust against build files with missing file references' do
@@ -197,7 +227,7 @@ module Pod
           build_file.file_ref = nil
           @target_integrator.stubs(:user_project).returns(@project)
           @target.frameworks_build_phase.files << build_file
-          @target_integrator.send(:native_targets).map(&:name).should == %w(          SampleProject          )
+          @target_integrator.send(:native_targets).map(&:name).should == %w( SampleProject          )
         end
       end
     end

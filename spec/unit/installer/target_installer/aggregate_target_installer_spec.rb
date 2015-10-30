@@ -24,7 +24,6 @@ module Pod
 
         @target = AggregateTarget.new(@target_definition, config.sandbox)
         @target.stubs(:platform).returns(Platform.new(:ios, '6.0'))
-        @target.user_project_path = config.sandbox.root + '../user_project.xcodeproj'
         @target.client_root = config.sandbox.root.dirname
         @target.user_build_configurations = { 'Debug' => :debug, 'Release' => :release, 'AppStore' => :release, 'Test' => :debug }
 
@@ -85,7 +84,7 @@ module Pod
 
       it "adds the user's build configurations to the target" do
         @installer.install!
-        @project.targets.first.build_configurations.map(&:name).sort.should == %w(        AppStore Debug Release Test        )
+        @project.targets.first.build_configurations.map(&:name).sort.should == %w( AppStore Debug Release Test        )
       end
 
       it 'it creates different hash instances for the build settings of various build configurations' do
@@ -101,10 +100,24 @@ module Pod
         end
       end
 
+      it 'will be built as static library' do
+        @installer.install!
+        @installer.target.native_target.build_configurations.each do |config|
+          config.build_settings['MACH_O_TYPE'].should == 'staticlib'
+        end
+      end
+
       it 'will be skipped when installing' do
         @installer.install!
         @installer.target.native_target.build_configurations.each do |config|
           config.build_settings['SKIP_INSTALL'].should == 'YES'
+        end
+      end
+
+      it 'has a PRODUCT_BUNDLE_IDENTIFIER set' do
+        @installer.install!
+        @installer.target.native_target.build_configurations.each do |config|
+          config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'].should == 'org.cocoapods.${PRODUCT_NAME:rfc1034identifier}'
         end
       end
 

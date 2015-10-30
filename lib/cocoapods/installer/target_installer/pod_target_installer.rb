@@ -36,21 +36,16 @@ module Pod
 
       private
 
-      # Adds the project/library and compatibility versions, which are only
-      # applicable to dynamic libraries.
+      # Remove the default headers folder path settings for static library pod
+      # targets.
       #
       # @return [Hash{String => String}]
       #
       def custom_build_settings
         settings = super
-        if target.requires_frameworks?
-          version = target.root_spec.version
-          project_version = [version.major, version.minor, version.patch].join('.')
-          compatibility_version = version.major
-          compatibility_version = project_version if compatibility_version < 1
-          settings['CURRENT_PROJECT_VERSION'] = project_version
-          settings['DYLIB_COMPATIBILITY_VERSION'] = compatibility_version.to_s
-          settings['DYLIB_CURRENT_VERSION'] = '$(CURRENT_PROJECT_VERSION)'
+        unless target.requires_frameworks?
+          settings['PRIVATE_HEADERS_FOLDER_PATH'] = ''
+          settings['PUBLIC_HEADERS_FOLDER_PATH'] = ''
         end
         settings
       end
@@ -88,15 +83,7 @@ module Pod
 
           header_file_refs = headers.map { |sf| project.reference_for_path(sf) }
           native_target.add_file_references(header_file_refs) do |build_file|
-            # Set added headers as public if needed
-            build_file.settings ||= {}
-            if public_headers.include?(build_file.file_ref.real_path)
-              build_file.settings['ATTRIBUTES'] = ['Public']
-            elsif private_headers.include?(build_file.file_ref.real_path)
-              build_file.settings['ATTRIBUTES'] = ['Private']
-            else
-              build_file.settings['ATTRIBUTES'] = ['Project']
-            end
+            add_header(build_file, public_headers, private_headers)
           end
 
           other_file_refs = other_source_files.map { |sf| project.reference_for_path(sf) }
@@ -199,6 +186,7 @@ module Pod
         :ios => Version.new('6'),
         :osx => Version.new('10.8'),
         :watchos => Version.new('2.0'),
+        :tvos => Version.new('9.0'),
       }
 
       # Returns the compiler flags for the source files of the given specification.
@@ -287,6 +275,39 @@ module Pod
 
       def custom_module_map
         @custom_module_map ||= target.file_accessors.first.module_map
+      end
+
+      def header_mappings_dir
+        return @header_mappings_dir if defined?(@header_mappings_dir)
+        file_accessor = target.file_accessors.first
+        @header_mappings_dir = if dir = file_accessor.spec_consumer.header_mappings_dir
+                                 file_accessor.path_list.root + dir
+                               end
+      end
+
+      def add_header(build_file, public_headers, private_headers)
+        file_ref = build_file.file_ref
+        acl = if public_headers.include?(file_ref.real_path)
+                'Public'
+              elsif private_headers.include?(file_ref.real_path)
+                'Private'
+              else
+                'Project'
+              end
+
+        if target.requires_frameworks? && header_mappings_dir
+          relative_path = file_ref.real_path.relative_path_from(header_mappings_dir)
+          sub_dir = relative_path.dirname
+          copy_phase_name = "Copy #{sub_dir} #{acl} Headers"
+          copy_phase = native_target.copy_files_build_phases.find { |bp| bp.name == copy_phase_name } ||
+            native_target.new_copy_files_build_phase(copy_phase_name)
+          copy_phase.symbol_dst_subfolder_spec = :products_directory
+          copy_phase.dst_path = "$(#{acl.upcase}_HEADERS_FOLDER_PATH)/#{sub_dir}"
+          copy_phase.add_file_reference(file_ref, true)
+        else
+          build_file.settings ||= {}
+          build_file.settings['ATTRIBUTES'] = [acl]
+        end
       end
 
       #-----------------------------------------------------------------------#

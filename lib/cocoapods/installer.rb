@@ -462,6 +462,16 @@ module Pod
       run_plugins_post_install_hooks
       warn_for_deprecations
       lock_pod_sources
+      print_post_install_message
+    end
+
+    def print_post_install_message
+      podfile_dependencies = podfile.dependencies.uniq.size
+      pods_installed = root_specs.size
+      UI.info('Pod installation complete! ' \
+              "There #{podfile_dependencies == 1 ? 'is' : 'are'} #{podfile_dependencies} " \
+              "#{'dependency'.pluralize(podfile_dependencies)} from the Podfile " \
+              "and #{pods_installed} total #{'pod'.pluralize(pods_installed)} installed.")
     end
 
     # Runs the registered callbacks for the plugins post install hooks.
@@ -538,9 +548,7 @@ module Pod
     #
     def prepare_pods_project
       UI.message '- Creating Pods project' do
-        object_version = aggregate_targets.map(&:user_project_path).compact.map do |path|
-          Xcodeproj::Project.open(path).object_version.to_i
-        end.min
+        object_version = aggregate_targets.map(&:user_project).compact.map { |p| p.object_version.to_i }.min
 
         if object_version
           @pods_project = Pod::Project.new(sandbox.project_path, false, object_version)
@@ -569,10 +577,12 @@ module Pod
         osx_deployment_target = platforms.select { |p| p.name == :osx }.map(&:deployment_target).min
         ios_deployment_target = platforms.select { |p| p.name == :ios }.map(&:deployment_target).min
         watchos_deployment_target = platforms.select { |p| p.name == :watchos }.map(&:deployment_target).min
+        tvos_deployment_target = platforms.select { |p| p.name == :tvos }.map(&:deployment_target).min
         @pods_project.build_configurations.each do |build_configuration|
           build_configuration.build_settings['MACOSX_DEPLOYMENT_TARGET'] = osx_deployment_target.to_s if osx_deployment_target
           build_configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = ios_deployment_target.to_s if ios_deployment_target
           build_configuration.build_settings['WATCHOS_DEPLOYMENT_TARGET'] = watchos_deployment_target.to_s if watchos_deployment_target
+          build_configuration.build_settings['TVOS_DEPLOYMENT_TARGET'] = tvos_deployment_target.to_s if tvos_deployment_target
           build_configuration.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
           build_configuration.build_settings['CLANG_ENABLE_OBJC_ARC'] = 'YES'
         end
@@ -631,7 +641,8 @@ module Pod
       frameworks_group = pods_project.frameworks_group
       aggregate_targets.each do |aggregate_target|
         is_app_extension = !(aggregate_target.user_targets.map(&:symbol_type) &
-          [:app_extension, :watch_extension, :watch2_extension]).empty?
+          [:app_extension, :watch_extension, :watch2_extension, :tv_extension]).empty?
+        is_app_extension ||= aggregate_target.user_targets.any? { |ut| ut.common_resolved_build_setting('APPLICATION_EXTENSION_API_ONLY') == 'YES' }
 
         aggregate_target.pod_targets.each do |pod_target|
           configure_app_extension_api_only_for_target(aggregate_target) if is_app_extension
@@ -732,7 +743,7 @@ module Pod
     #         information in the lockfile.
     #
     def integrate_user_project
-      UI.section "Integrating client #{'project'.pluralize(aggregate_targets.map(&:user_project_path).uniq.count) }" do
+      UI.section "Integrating client #{'project'.pluralize(aggregate_targets.map(&:user_project_path).uniq.count)}" do
         installation_root = config.installation_root
         integrator = UserProjectIntegrator.new(podfile, sandbox, installation_root, aggregate_targets)
         integrator.integrate!

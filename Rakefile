@@ -54,7 +54,7 @@ begin
       sh "git checkout #{specs_branch}"
       sh 'git pull'
 
-      yaml_file  = 'CocoaPods-version.yml'
+      yaml_file = 'CocoaPods-version.yml'
       unless File.exist?(yaml_file)
         $stderr.puts red("[!] Unable to find #{yaml_file}!")
         exit 1
@@ -127,6 +127,8 @@ begin
     # to be run separately.
     #
     task :all => 'fixture_tarballs:unpack' do
+      # Forcing colored to be included on String before Term::ANSIColor, so that Inch will work correctly.
+      require 'colored'
       ENV['GENERATE_COVERAGE'] = 'true'
       puts "\033[0;32mUsing #{`ruby --version`}\033[0m"
 

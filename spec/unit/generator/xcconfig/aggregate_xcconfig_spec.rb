@@ -157,8 +157,8 @@ module Pod
               fixture_spec('monkey/monkey.podspec')
             end
 
-            it 'does not add the framework build path to the xcconfig' do
-              @xcconfig.to_hash['FRAMEWORK_SEARCH_PATHS'].should.be.nil
+            it 'does add the framework build path to the xcconfig' do
+              @xcconfig.to_hash['FRAMEWORK_SEARCH_PATHS'].should.not.be.nil
             end
 
             it 'configures the project to load all members that implement Objective-c classes or categories' do
@@ -224,6 +224,16 @@ module Pod
 
           it 'adds the COCOAPODS macro definition' do
             @xcconfig.to_hash['OTHER_SWIFT_FLAGS'].should.include '$(inherited) "-D" "COCOAPODS"'
+          end
+
+          it 'sets EMBEDDED_CONTENT_CONTAINS_SWIFT when there is swift' do
+            @generator.send(:pod_targets).first.stubs(:uses_swift?).returns(true)
+            @generator.generate.to_hash['EMBEDDED_CONTENT_CONTAINS_SWIFT'].should == 'YES'
+          end
+
+          it 'does not set EMBEDDED_CONTENT_CONTAINS_SWIFT when there is no swift' do
+            @generator.send(:pod_targets).each { |pt| pt.stubs(:uses_swift?).returns(false) }
+            @generator.generate.to_hash['EMBEDDED_CONTENT_CONTAINS_SWIFT'].should.be.nil
           end
         end
 

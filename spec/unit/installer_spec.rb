@@ -69,6 +69,7 @@ module Pod
         def @installer.run_podfile_pre_install_hooks
           @hook_called = true
         end
+
         def @installer.clean_pod_sources
           @hook_called.should.be.true
         end
@@ -87,6 +88,7 @@ module Pod
         def @installer.run_podfile_post_install_hooks
           @hook_called = true
         end
+
         def @installer.write_pod_project
           @hook_called.should.be.true
         end
@@ -102,6 +104,7 @@ module Pod
         def @installer.run_source_provider_hooks
           @hook_called = true
         end
+
         def @installer.analyze(*)
           @hook_called.should.be.true
         end
@@ -180,7 +183,7 @@ module Pod
           pod 'monkey',          :path => (fixture_path + 'monkey').to_s
 
           target 'TestRunner', :exclusive => true do
-            pod 'monkey',        :path => (fixture_path + 'monkey').to_s
+            pod 'monkey', :path => (fixture_path + 'monkey').to_s
           end
         end
         lockfile = generate_lockfile
@@ -488,7 +491,7 @@ module Pod
         end
 
         before do
-          @installer.stubs(:analysis_result).returns(stub(:all_user_build_configurations => {}))
+          @installer.stubs(:analysis_result).returns(stub(:all_user_build_configurations => {}, :target_inspections => nil))
         end
 
         it 'creates the Pods project' do
@@ -626,6 +629,24 @@ module Pod
           test_extension_target(:watch2_extension)
         end
 
+        it 'configures APPLICATION_EXTENSION_API_ONLY for tvOS extension targets' do
+          test_extension_target(:tv_extension)
+        end
+
+        it 'configures APPLICATION_EXTENSION_API_ONLY for targets where the user target has it set' do
+          mock_user_target = mock('UserTarget', :symbol_type => :application)
+          mock_user_target.expects(:common_resolved_build_setting).with('APPLICATION_EXTENSION_API_ONLY').returns('YES')
+          @target.stubs(:user_targets).returns([mock_user_target])
+
+          build_settings = {}
+          mock_configuration = mock('BuildConfiguration', :build_settings => build_settings)
+          @mock_target.stubs(:build_configurations).returns([mock_configuration])
+
+          @installer.send(:set_target_dependencies)
+
+          build_settings.should == { 'APPLICATION_EXTENSION_API_ONLY' => 'YES' }
+        end
+
         it 'does not try to set APPLICATION_EXTENSION_API_ONLY if there are no pod targets' do
           lambda do
             mock_user_target = mock('UserTarget', :symbol_type => :app_extension)
@@ -653,7 +674,7 @@ module Pod
       describe '#write_pod_project' do
         before do
           @installer.stubs(:aggregate_targets).returns([])
-          @installer.stubs(:analysis_result).returns(stub(:all_user_build_configurations => {}))
+          @installer.stubs(:analysis_result).returns(stub(:all_user_build_configurations => {}, :target_inspections => nil))
           @installer.send(:prepare_pods_project)
         end
 
@@ -692,7 +713,7 @@ module Pod
 
           aggregate_target = AggregateTarget.new(nil, config.sandbox)
           aggregate_target.stubs(:platform).returns(Platform.new(:ios, '6.0'))
-          aggregate_target.stubs(:user_project_path).returns(proj.path)
+          aggregate_target.stubs(:user_project).returns(proj)
           @installer.stubs(:aggregate_targets).returns([aggregate_target])
 
           @installer.send(:prepare_pods_project)
