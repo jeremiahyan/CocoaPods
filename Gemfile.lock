@@ -7,7 +7,7 @@ GIT
 
 GIT
   remote: https://github.com/CocoaPods/Core.git
-  revision: d66fcb7160f060198c3808eb2ff3f51edf212687
+  revision: ce26e1eb797a6ad1f1d94b0304a50c491bc41237
   branch: master
   specs:
     cocoapods-core (0.39.0)
@@ -24,7 +24,7 @@ GIT
 
 GIT
   remote: https://github.com/CocoaPods/Xcodeproj.git
-  revision: 0e38ccdecd7b5cc6515465bf22cf30bb016ab17c
+  revision: 7a3d0c6520d995353b7ec09c4585aebf43e6c613
   branch: master
   specs:
     xcodeproj (0.28.2)
@@ -49,7 +49,7 @@ GIT
 
 GIT
   remote: https://github.com/CocoaPods/cocoapods-search.git
-  revision: 4e7de92e477f47918d869a7c4819251633efca0d
+  revision: 4281e740769875ba4e48748b73c7ff832a8d336e
   branch: master
   specs:
     cocoapods-search (0.1.0)
@@ -140,7 +140,7 @@ GEM
       rb-kqueue (>= 0.2)
     metaclass (0.0.4)
     method_source (0.8.2)
-    minitest (5.8.1)
+    minitest (5.8.2)
     mocha (1.1.0)
       metaclass (~> 0.0.1)
     mocha-on-bacon (0.2.2)

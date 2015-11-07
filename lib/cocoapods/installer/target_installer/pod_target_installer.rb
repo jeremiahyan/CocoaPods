@@ -112,6 +112,7 @@ module Pod
             file_references = paths.map { |sf| project.reference_for_path(sf) }
             label = target.resources_bundle_target_label(bundle_name)
             bundle_target = project.new_resources_bundle(label, file_accessor.spec_consumer.platform_name)
+            bundle_target.deployment_target = deployment_target
             bundle_target.product_reference.tap do |bundle_product|
               bundle_file_name = "#{bundle_name}.bundle"
               bundle_product.name = bundle_file_name
@@ -308,6 +309,18 @@ module Pod
           build_file.settings ||= {}
           build_file.settings['ATTRIBUTES'] = [acl]
         end
+      end
+
+      # The deployment target for the pod target, which is the maximum of all
+      # the deployment targets for the current platform of the target.
+      #
+      # @return [String] The deployment target.
+      #
+      def deployment_target
+        default = Podfile::TargetDefinition::PLATFORM_DEFAULTS[target.platform.name]
+        target.specs.map do |spec|
+          Pod::Version.new(spec.deployment_target(target.platform.name) || default)
+        end.max.to_s
       end
 
       #-----------------------------------------------------------------------#

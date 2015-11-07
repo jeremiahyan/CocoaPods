@@ -8,10 +8,24 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
 
 ##### Enhancements
 
+* Add support to track `.def` sources.
+  [Dimitris Koutsogiorgas](https://github.com/dnkoutso)
+  [#4490](https://github.com/CocoaPods/CocoaPods/pull/4490)
+
+* `Pod::Installer::PostInstallHooksContext` now offers access to the `sandbox`
+  object.  
+  [Marcelo Fabri](https://github.com/marcelofabri)
+  [#4487](https://github.com/CocoaPods/CocoaPods/pull/4487)
+
 * Improve `pod search` performance while using _`--full`_ flag  
+* Improve sorting algorithm for `pod search`.  
+  [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
+  [cocoapods-search#12](https://github.com/CocoaPods/cocoapods-search/issues/12)
+
+* Improve `pod search` performance while using _`--full`_ flag.  
   [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
   [cocoapods-search#8](https://github.com/CocoaPods/cocoapods-search/issues/8)
-  
+
 * Improve message when there is no spec in repos for dependency set in Podfile.  
   [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
   [#4430](https://github.com/CocoaPods/CocoaPods/issues/4430)
@@ -44,9 +58,21 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
   [#2134](https://github.com/CocoaPods/CocoaPods/issues/2134)
 
 * The `Info.plist` file's `CFBundleIdentifier` is now set via the
-  `PRODUCT_BUNDLE_IDENTIFIER` build setting, consisten with Xcode 7.  
+  `PRODUCT_BUNDLE_IDENTIFIER` build setting, consistent with Xcode 7.  
   [Samuel Giddins](https://github.com/segiddins)
   [#4426](https://github.com/CocoaPods/CocoaPods/issues/4426)
+
+* Externally-sourced pods will now have their specifications quickly linted.  
+  [Samuel Giddins](https://github.com/segiddins)
+
+* Set the deployment target on pods to be that which is defined in the
+  podspec.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4354](https://github.com/CocoaPods/CocoaPods/issues/3454)
+
+* Set a deployment target for resource bundle targets.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#3347](https://github.com/CocoaPods/CocoaPods/issues/3347)
 
 ##### Bug Fixes
 
@@ -81,6 +107,15 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
   podspecs.  
   [Samuel Giddins](https://github.com/segiddins)
   [#3683](https://github.com/CocoaPods/CocoaPods/issues/3683)
+
+* Remove the library name's extension when adding it in the "linker flags" build
+  setting to support dynamic libraries.  
+  [Andrea Cremaschi](https://github.com/andreacremaschi)
+  [#4468](https://github.com/CocoaPods/CocoaPods/issues/4468)
+
+* Specifying relative subspec names to the linter is now supported.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#1917](https://github.com/CocoaPods/CocoaPods/issues/1917)
 
 
 ## 0.39.0 (2015-10-09)

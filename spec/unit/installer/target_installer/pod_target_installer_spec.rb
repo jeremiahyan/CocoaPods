@@ -33,12 +33,20 @@ module Pod
         @spec.prefix_header_contents = '#import "BlocksKit.h"'
       end
 
+      it 'uses the maximum of all spec deployment targets' do
+        spec_1 = Pod::Specification.new { |s| s.ios.deployment_target = '10.10' }
+        spec_2 = Pod::Specification.new { |s| s.ios.deployment_target = '10.9' }
+        spec_3 = Pod::Specification.new
+        @pod_target.stubs(:specs).returns([spec_1, spec_2, spec_3])
+        @installer.send(:deployment_target).should == '10.10'
+      end
+
       it 'sets the platform and the deployment target for iOS targets' do
         @installer.install!
         target = @project.targets.first
         target.platform_name.should == :ios
-        target.deployment_target.should == '6.0'
-        target.build_settings('Debug')['IPHONEOS_DEPLOYMENT_TARGET'].should == '6.0'
+        target.deployment_target.should == '4.3'
+        target.build_settings('Debug')['IPHONEOS_DEPLOYMENT_TARGET'].should == '4.3'
       end
 
       it 'sets the platform and the deployment target for OS X targets' do
@@ -46,8 +54,8 @@ module Pod
         @installer.install!
         target = @project.targets.first
         target.platform_name.should == :osx
-        target.deployment_target.should == '10.8'
-        target.build_settings('Debug')['MACOSX_DEPLOYMENT_TARGET'].should == '10.8'
+        target.deployment_target.should == '10.6'
+        target.build_settings('Debug')['MACOSX_DEPLOYMENT_TARGET'].should == '10.6'
       end
 
       it "adds the user's build configurations to the target" do
@@ -140,6 +148,8 @@ module Pod
           bundle_target.should.be.an.instance_of Xcodeproj::Project::Object::PBXNativeTarget
           bundle_target.product_reference.name.should == 'banana_bundle.bundle'
           bundle_target.product_reference.path.should == 'banana_bundle.bundle'
+          bundle_target.platform_name.should == :ios
+          bundle_target.deployment_target.should == '4.3'
         end
 
         it 'adds the build configurations to the resources bundle targets' do
