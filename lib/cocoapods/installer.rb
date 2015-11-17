@@ -114,6 +114,12 @@ module Pod
     end
 
     def prepare
+      # Raise if pwd is inside Pods
+      if Dir.pwd.start_with?(sandbox.root.to_path)
+        message = 'Command should be run from a directory outside Pods directory.'
+        message << "\n\n\tCurrent directory is #{UI.path(Pathname.pwd)}\n"
+        raise Informative, message
+      end
       UI.message 'Preparing' do
         sandbox.prepare
         ensure_plugins_are_installed!
@@ -135,7 +141,6 @@ module Pod
       UI.section 'Analyzing dependencies' do
         analyze(analyzer)
         validate_build_configurations
-        prepare_for_legacy_compatibility
         clean_sandbox
       end
     end
@@ -235,17 +240,6 @@ module Pod
       unless remainder.empty?
         raise Informative, "Unknown #{'configuration'.pluralize(remainder.size)} whitelisted: #{remainder.sort.to_sentence}."
       end
-    end
-
-    # Prepares the Pods folder in order to be compatible with the most recent
-    # version of CocoaPods.
-    #
-    # @return [void]
-    #
-    def prepare_for_legacy_compatibility
-      # move_target_support_files_if_needed
-      # move_Local_Podspecs_to_Podspecs_if_needed
-      # move_pods_to_sources_folder_if_needed
     end
 
     # @return [void] In this step we clean all the folders that will be

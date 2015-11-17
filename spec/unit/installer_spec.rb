@@ -99,7 +99,6 @@ module Pod
         config.skip_repo_update = true
         @installer.unstub(:resolve_dependencies)
         @installer.stubs(:validate_build_configurations)
-        @installer.stubs(:prepare_for_legacy_compatibility)
         @installer.stubs(:clean_sandbox)
         def @installer.run_source_provider_hooks
           @hook_called = true
@@ -125,7 +124,6 @@ module Pod
         @installer.podfile.stubs(:plugins).returns(plugins_hash)
         @installer.unstub(:resolve_dependencies)
         @installer.stubs(:validate_build_configurations)
-        @installer.stubs(:prepare_for_legacy_compatibility)
         @installer.stubs(:clean_sandbox)
         @installer.stubs(:ensure_plugins_are_installed!)
         @installer.stubs(:analyze)
@@ -164,6 +162,20 @@ module Pod
         @installer.send(:warn_for_deprecations)
         UI.warnings.should.include 'deprecated in favor of AFNetworking'
         UI.warnings.should.include 'BlocksKit has been deprecated'
+      end
+
+      it 'does not raise if command is run outside sandbox directory' do
+        Dir.chdir(@installer.sandbox.root.parent) do
+          should.not.raise(Informative) { @installer.install! }
+        end
+      end
+
+      it 'raises if command is run in sandbox directory' do
+        Dir.chdir(@installer.sandbox.root) do
+          should.raise Informative do
+            @installer.install!
+          end.message.should.match /should.*run.*outside.*Pods directory.*Current directory.*\./m
+        end
       end
     end
 
@@ -240,24 +252,30 @@ module Pod
           pod 'monkey',          :path => (fixture_path + 'monkey').to_s
         end
         @lockfile = generate_lockfile
+
+        @file = Pathname('/yolo.m')
+        @file.stubs(:realpath).returns(@file)
+
+        @lib_thing = Pathname('/libThing.a')
+        @lib_thing.stubs(:realpath).returns(@lib_thing)
       end
 
       it 'detects transitive static dependencies which are linked directly to the user target' do
-        Sandbox::FileAccessor.any_instance.stubs(:vendored_libraries).returns([Pathname('/libThing.a')])
+        Sandbox::FileAccessor.any_instance.stubs(:vendored_libraries).returns([@lib_thing])
         @installer = Installer.new(config.sandbox, @podfile, @lockfile)
         should.raise(Informative) { @installer.install! }.message.should.match /transitive.*libThing/
       end
 
       it 'allows transitive static dependencies which contain other source code' do
-        Sandbox::FileAccessor.any_instance.stubs(:source_files).returns([Pathname('/yolo.m')])
-        Sandbox::FileAccessor.any_instance.stubs(:vendored_libraries).returns([Pathname('/libThing.a')])
+        Sandbox::FileAccessor.any_instance.stubs(:source_files).returns([@file])
+        Sandbox::FileAccessor.any_instance.stubs(:vendored_libraries).returns([@lib_thing])
         @installer = Installer.new(config.sandbox, @podfile, @lockfile)
         should.not.raise(Informative) { @installer.install! }
       end
 
       it 'allows transitive static dependencies when both dependencies are linked against the user target' do
         PodTarget.any_instance.stubs(:should_build? => false)
-        Sandbox::FileAccessor.any_instance.stubs(:vendored_libraries).returns([Pathname('/libThing.a')])
+        Sandbox::FileAccessor.any_instance.stubs(:vendored_libraries).returns([@lib_thing])
         @installer = Installer.new(config.sandbox, @podfile, @lockfile)
         should.not.raise(Informative) { @installer.install! }
       end

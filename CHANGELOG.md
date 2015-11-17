@@ -8,16 +8,23 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
 
 ##### Enhancements
 
+* Add support for specifying :source with a pod dependency.  
+  [Eric Firestone](https://github.com/efirestone)
+  [#4486](https://github.com/CocoaPods/CocoaPods/pull/4486)
+
+* Ask user to run `pod install` when a resource not found during in copy resources script.  
+  [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
+
 * Add support to track `.def` sources.
+* Add support to track `.def` files as headers.
   [Dimitris Koutsogiorgas](https://github.com/dnkoutso)
-  [#4490](https://github.com/CocoaPods/CocoaPods/pull/4490)
+  [#338](https://github.com/CocoaPods/Xcodeproj/pull/338)
 
 * `Pod::Installer::PostInstallHooksContext` now offers access to the `sandbox`
   object.  
   [Marcelo Fabri](https://github.com/marcelofabri)
   [#4487](https://github.com/CocoaPods/CocoaPods/pull/4487)
 
-* Improve `pod search` performance while using _`--full`_ flag  
 * Improve sorting algorithm for `pod search`.  
   [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
   [cocoapods-search#12](https://github.com/CocoaPods/cocoapods-search/issues/12)
@@ -76,6 +83,9 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
 
 ##### Bug Fixes
 
+* Prevent installer to be run from inside sandbox directory.  
+  [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
+
 * Improve repo lint error message when no repo found with given name.  
   [Muhammed Yavuz Nuzumlalı](https://github.com/manuyavuz)
   [#4142](https://github.com/CocoaPods/CocoaPods/issues/4142)
@@ -116,6 +126,25 @@ To install release candidates run `[sudo] gem install cocoapods --pre`
 * Specifying relative subspec names to the linter is now supported.  
   [Samuel Giddins](https://github.com/segiddins)
   [#1917](https://github.com/CocoaPods/CocoaPods/issues/1917)
+
+* Headers used to build a pod will no longer be duplicated for frameworks.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4420](https://github.com/CocoaPods/CocoaPods/issues/4420)
+
+* The `UIRequiredDeviceCapabilities` key is now specified in the `Info.plist`
+  file for tvOS pods built as frameworks.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4514](https://github.com/CocoaPods/CocoaPods/issues/4514)
+
+* Fix Swift code completion for Development Pods by using `realpath` for
+  symlinked source files.  
+  [Boris Bügling](https://github.com/neonichu)
+  [#3777](https://github.com/CocoaPods/CocoaPods/issues/3777)
+
+* Avoid the duplicate UUID warning when a Pod is installed for multiple
+  platforms.  
+  [Samuel Giddins](https://github.com/segiddins)
+  [#4521](https://github.com/CocoaPods/CocoaPods/issues/4521)
 
 
 ## 0.39.0 (2015-10-09)
